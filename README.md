@@ -81,17 +81,39 @@ so the platform side is one `reverse_proxy citywatch:80` block plus one card in
 its registry. The app itself needed no code changes: a subdomain keeps it at the
 site root, so root-relative asset paths keep working.
 
-`git push` to `main` runs [the workflow](.github/workflows/main.yml): typecheck +
-build, validate both compose files, then SSH to the box, `git reset --hard`
-`/srv/citywatch`, `docker compose up -d --build`, and health-check nginx *inside*
-the container (there's no host port to probe from outside).
+### The image is built in CI, never on the server
+
+`git push` to `main` runs [the workflow](.github/workflows/main.yml): validate
+both compose files, build the image on the runner (its build stage runs
+`tsc --noEmit && vite build`, so a type error fails the deploy and nothing is
+pushed), push it to `ghcr.io/gkhazaradze/citywatch`, then SSH to the box to
+`git reset --hard` `/srv/citywatch`, **pull** that image, start it with
+`--no-build`, and health-check nginx *inside* the container (there's no host
+port to probe from outside).
+
+The build location is the whole point. That box has **909 MB of RAM, 2 vCPUs and
+no swap**, and with the other three projects running there's ~380 MB free. A
+Rollup build wants 0.5–1.5 GB — attempting one there exhausted memory and wedged
+the entire instance, taking every site on it down until a reboot. The runner has
+7 GB and no production traffic. Don't move the build back.
 
 Repo secrets it needs: `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY` (the same deploy key
-the other projects use) and `CITYWATCH_URL` for the public post-deploy check.
+the other projects use) and `CITYWATCH_URL` for the public post-deploy check. The
+registry needs no secret — GHCR packages default to private even for a public
+repo, so the deploy logs in with the run's own `GITHUB_TOKEN` and logs out after,
+leaving no long-lived credential on the server.
 
 No manual first-deploy step: if `/srv/citywatch` doesn't exist yet the workflow
 clones it (the repo is public, so the server needs no credentials) and hands
 ownership to the login user, so every later deploy is a plain fetch + reset.
+
+Every build is also tagged with its commit sha, so a rollback is one command on
+the box:
+
+```bash
+cd /srv/citywatch
+CITYWATCH_TAG=<git-sha> sudo -E docker compose up -d --no-build app
+```
 
 ## Running without Docker
 

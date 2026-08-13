@@ -1,5 +1,14 @@
 name: Deploy (Docker)
 
+# The image is built HERE, on the runner, and pushed to GHCR. The server only
+# pulls it.
+#
+# This is not a stylistic choice: the box has 909 MB of RAM, 2 vCPUs and no
+# swap, and with roadtrip/availability/bustracker running there is ~380 MB free.
+# A Rollup production build wants 0.5-1.5 GB, so building there exhausted memory
+# and wedged the whole instance — every site on it went down until a reboot.
+# The runner has 7 GB and no production traffic. Keep the build here.
+
 on:
   push:
     branches: [main]
@@ -9,30 +18,22 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  # Must be lowercase — GHCR rejects mixed-case names (the owner is "gKhazaradze").
+  IMAGE: ghcr.io/gkhazaradze/citywatch
+
 jobs:
   deploy:
     name: Deploy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest      # x86_64, matching the box — no QEMU emulation
     timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write           # push (and pull) the image on ghcr.io
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Typecheck + build
-        # `npm run build` is `tsc --noEmit && vite build`, so this catches a
-        # broken type or a bad import here rather than on the box, where the
-        # same failure would abort the image build mid-deploy.
-        run: npm run build
 
       - name: Validate compose files
         run: |
@@ -42,14 +43,46 @@ jobs:
           docker compose -f docker-compose.yml config -q
           docker compose -f docker-compose.yml -f docker-compose.dev.yml config -q
 
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        # The runtime stage runs `tsc --noEmit && vite build` in its build stage,
+        # so a type error fails here and nothing gets pushed — this step is the
+        # typecheck gate as well as the build.
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          # GITHUB_TOKEN is scoped to this run and expires with it, so the box
+          # never stores a long-lived registry credential.
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script_stop: true
+          envs: GHCR_TOKEN,GHCR_USER
           script: |
             set -euo pipefail
 
@@ -67,7 +100,8 @@ jobs:
 
             # git runs as the LOGIN USER, not root: /srv/citywatch is owned by
             # that user. Only docker needs sudo (the same NOPASSWD sudoers rule
-            # the other projects rely on).
+            # the other projects rely on). The checkout is still needed even
+            # though the image is prebuilt — it carries the compose file.
             echo "--- Syncing latest code ---"
             git config --global --add safe.directory /srv/citywatch || true
             git -C /srv/citywatch fetch --prune origin main
@@ -78,15 +112,25 @@ jobs:
             # repo; create-if-missing so a missing network can't fail us.
             sudo docker network inspect web >/dev/null 2>&1 || sudo docker network create web
 
-            echo "--- Building & (re)starting the container ---"
-            # NOTE: only docker-compose.yml — never the dev overlay, which would
-            # publish a host port beside the edge instead of behind it.
+            echo "--- Pulling the prebuilt image ---"
+            # GHCR packages default to private even for a public repo, so
+            # authenticate with this run's token, then drop it again.
+            echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
             cd /srv/citywatch
-            sudo docker compose up -d --build --remove-orphans
+            sudo docker compose pull app
+
+            echo "--- Starting the container ---"
+            # --no-build is load-bearing: it makes it structurally impossible
+            # for this box to attempt a Rollup build, whatever the compose file
+            # says. See the note at the top of this workflow.
+            sudo docker compose up -d --no-build app
+
+            sudo docker logout ghcr.io >/dev/null 2>&1 || true
 
             echo "--- Pruning dangling images (keep disk in check) ---"
-            # A Vite rebuild leaves the previous image layers dangling every
-            # deploy; unpruned they fill the disk on a small instance.
+            # Each deploy leaves the previous image untagged; unpruned they fill
+            # the small root volume.
             sudo docker image prune -f >/dev/null 2>&1 || true
 
             echo "--- Waiting for nginx to answer (inside the container) ---"

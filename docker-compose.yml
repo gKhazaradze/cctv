@@ -10,14 +10,22 @@
 # Stop with: docker compose down
 #
 # The shared network must exist:  docker network create web
+#
+# ON THE SERVER the image is never built — it is pulled. That box has 909 MB of
+# RAM and no swap, and a Rollup build there once exhausted memory and took every
+# site on it down. CI builds on the runner, pushes to GHCR, and the deploy runs
+# `docker compose pull app && docker compose up -d --no-build app`.
 
 services:
   # Production build behind nginx. This is the one that stays up.
   app:
+    # `build` is kept for LOCAL use (`up --build`). The server pulls `image`
+    # instead and passes --no-build, so it can never start a build of its own.
     build:
       context: .
       target: runtime
-    image: citywatch:latest
+    # Pin a specific build to roll back:  CITYWATCH_TAG=<git-sha> docker compose up -d
+    image: ghcr.io/gkhazaradze/citywatch:${CITYWATCH_TAG:-latest}
     container_name: citywatch      # stable name the platform Caddyfile targets
     environment:
       # Optional. Free key from https://api.windy.com/keys ("Webcams" product).
