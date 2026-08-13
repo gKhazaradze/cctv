@@ -1,0 +1,83 @@
+# Production: citywatch runs as a NETWORK-ONLY container behind the platform's
+# Caddy edge. It publishes NO host ports and joins the shared external `web`
+# network, where Caddy reaches it as `citywatch:80` and serves it at
+# citywatch.<domain>. (See the platform repo's CONTRACT.md.)
+#
+#   docker compose up -d --build      # build + start (no host port published)
+#
+# Local preview (publishes localhost:8080, so you can actually open it):
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+# Stop with: docker compose down
+#
+# The shared network must exist:  docker network create web
+
+services:
+  # Production build behind nginx. This is the one that stays up.
+  app:
+    build:
+      context: .
+      target: runtime
+    image: citywatch:latest
+    container_name: citywatch      # stable name the platform Caddyfile targets
+    environment:
+      # Optional. Free key from https://api.windy.com/keys ("Webcams" product).
+      # Read at container start-up, so adding it needs a restart, not a rebuild.
+      WINDY_API_KEY: "${WINDY_API_KEY:-}"
+    restart: unless-stopped
+    networks: [web]
+
+  # Hot-reloading dev server against your working tree.
+  #   docker compose --profile dev up dev
+  # Local-only: keeps its host port and stays off the `web` network.
+  dev:
+    profiles: ["dev"]
+    build:
+      context: .
+      target: dev
+    image: citywatch-dev:latest
+    container_name: citywatch-dev
+    ports:
+      - "${CITYWATCH_DEV_PORT:-5173}:5173"
+    environment:
+      VITE_WINDY_API_KEY: "${WINDY_API_KEY:-}"
+    volumes:
+      - .:/app
+      # Keeps the image's linux-native node_modules instead of letting the host's
+      # darwin binaries shadow it through the bind mount above.
+      - /app/node_modules
+    # Deliberately not "unless-stopped": a dev server should come up when you
+    # ask for it, not silently after every reboot.
+    restart: "no"
+
+  # Optional RTSP/RTMP -> browser bridge for cameras that only speak RTSP (most
+  # security-style IP cameras). Browsers can't play RTSP; go2rtc converts it to
+  # HLS/WebRTC/MSE. Bring your own camera URLs in docker/go2rtc.yaml, then add
+  # the resulting HLS URL in the app. See docs/ip-cameras.md.
+  #   docker compose --profile rtsp up -d go2rtc
+  go2rtc:
+    profiles: ["rtsp"]
+    image: alexxit/go2rtc:latest
+    container_name: citywatch-go2rtc
+    network_mode: host          # simplest path for LAN cameras + WebRTC
+    volumes:
+      - ./docker/go2rtc.yaml:/config/go2rtc.yaml:ro
+    restart: unless-stopped
+
+  # One-shot camera health check.
+  #   docker compose --profile tools run --rm check
+  check:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: base
+    image: citywatch-tools:latest
+    environment:
+      WINDY_API_KEY: "${WINDY_API_KEY:-}"
+    command: ["npm", "run", "check:cams"]
+
+networks:
+  # Shared edge network, created out-of-band and owned by the platform repo.
+  # citywatch just attaches; Caddy routes citywatch.<domain> -> citywatch:80.
+  web:
+    external: true
+    name: web

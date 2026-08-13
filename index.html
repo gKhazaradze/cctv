@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta
+      name="description"
+      content="CityWatch — browse public live webcam feeds from city centres around the world."
+    />
+    <title>CityWatch — live city cameras</title>
+
+    <!--
+      Written by the container at start-up from its environment, so settings like
+      an API key can change without rebuilding the bundle. Served empty by the
+      Vite dev server. Must load before the app module.
+    -->
+    <script src="/config.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,117 @@
+name: Deploy (Docker)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # allow manual triggering from the GitHub UI
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck + build
+        # `npm run build` is `tsc --noEmit && vite build`, so this catches a
+        # broken type or a bad import here rather than on the box, where the
+        # same failure would abort the image build mid-deploy.
+        run: npm run build
+
+      - name: Validate compose files
+        run: |
+          # Production config and the local overlay both need to parse. The
+          # optional WINDY_API_KEY is unset here, exactly as it may be on the
+          # server, so this resolves with no .env.
+          docker compose -f docker-compose.yml config -q
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml config -q
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            # First deploy on a fresh box: clone ourselves rather than making
+            # someone SSH in to do it by hand. The repo is public, so this needs
+            # no credentials on the server. /srv is root-owned, hence sudo for
+            # the clone; ownership then moves to the login user so every later
+            # fetch/reset runs unprivileged, like the other projects.
+            echo "--- Ensuring the checkout exists ---"
+            if [ ! -d /srv/citywatch/.git ]; then
+              echo "no checkout at /srv/citywatch — cloning"
+              sudo git clone https://github.com/gKhazaradze/cctv.git /srv/citywatch
+              sudo chown -R "$(id -un)":"$(id -gn)" /srv/citywatch
+            fi
+
+            # git runs as the LOGIN USER, not root: /srv/citywatch is owned by
+            # that user. Only docker needs sudo (the same NOPASSWD sudoers rule
+            # the other projects rely on).
+            echo "--- Syncing latest code ---"
+            git config --global --add safe.directory /srv/citywatch || true
+            git -C /srv/citywatch fetch --prune origin main
+            git -C /srv/citywatch reset --hard origin/main
+
+            echo "--- Ensuring shared edge network exists ---"
+            # our compose joins the external `web` network owned by the platform
+            # repo; create-if-missing so a missing network can't fail us.
+            sudo docker network inspect web >/dev/null 2>&1 || sudo docker network create web
+
+            echo "--- Building & (re)starting the container ---"
+            # NOTE: only docker-compose.yml — never the dev overlay, which would
+            # publish a host port beside the edge instead of behind it.
+            cd /srv/citywatch
+            sudo docker compose up -d --build --remove-orphans
+
+            echo "--- Pruning dangling images (keep disk in check) ---"
+            # A Vite rebuild leaves the previous image layers dangling every
+            # deploy; unpruned they fill the disk on a small instance.
+            sudo docker image prune -f >/dev/null 2>&1 || true
+
+            echo "--- Waiting for nginx to answer (inside the container) ---"
+            # citywatch publishes no host port (Caddy owns the edge), so probe
+            # the app directly inside the container instead of host :80.
+            for i in $(seq 1 15); do
+              if sudo docker exec citywatch wget -q --spider http://127.0.0.1/ 2>/dev/null; then
+                echo "App is healthy"; exit 0
+              fi
+              sleep 2
+            done
+            echo "App failed to come up in time"
+            sudo docker compose logs --tail=40
+            exit 1
+
+      - name: Post-deploy public health check
+        run: |
+          # citywatch is served by Caddy at its subdomain over HTTPS.
+          # Set repo secret CITYWATCH_URL = https://citywatch.<domain>
+          for i in 1 2 3 4 5; do
+            if curl -sf --max-time 5 "${{ secrets.CITYWATCH_URL }}/" > /dev/null; then
+              echo "Public endpoint healthy"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Public endpoint not responding"
+          exit 1

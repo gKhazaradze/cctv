@@ -1,0 +1,14 @@
+# Never ship the host's node_modules — it contains darwin/arm64 native binaries
+# (esbuild, rollup) that will not run in a linux container.
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.local
+*.local
+.DS_Store
+*.log
+.vite
+docs
+README.md

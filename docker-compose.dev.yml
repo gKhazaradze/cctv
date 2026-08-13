@@ -1,0 +1,17 @@
+# Local overlay. In production the app publishes no host ports — Caddy is the
+# only thing that binds the edge — so on a laptop there'd be nothing to open.
+# This adds the host port back, and nothing else.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#   # → http://localhost:8080
+#
+# The base file still declares the external `web` network, so create it once:
+#   docker network create web
+#
+# Not to be used on the server: publishing :8080 there would expose the app
+# beside the edge instead of behind it.
+
+services:
+  app:
+    ports:
+      - "${CITYWATCH_PORT:-8080}:80"
