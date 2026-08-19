@@ -794,6 +794,10 @@ export const collectionCameras: Camera[] = [
     source: yt('yrx0fvj-4QI'),
     verifiedAt: '2026-08-10',
   },
+  // Paris (CDG / Orly / Le Bourget): checked 2026-08-18 — no operator publishes
+  // a permanent public camera at any of the three. The "CDG"/"ORY" YouTube live
+  // streams are departure boards, not cameras, and the only spotting stream
+  // found was a one-off broadcast from 2022. See docs/sources.md.
   // London Heathrow: no single permanent 24/7 video exists — the spotting
   // channels go live daily with a new video id. So these follow the CHANNEL's
   // current live stream (`channelId`), which survives the daily id change. They

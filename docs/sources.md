@@ -1,7 +1,8 @@
 # Where the cameras came from
 
 A record of what was actually tested when seeding the registry, so the next
-person does not repeat the same dead ends. Findings are as of **2026-08-10**.
+person does not repeat the same dead ends. Amsterdam and Tbilisi findings are
+as of **2026-08-10**; Paris (city and airports) as of **2026-08-18**.
 
 ## The test each candidate had to pass
 
@@ -107,6 +108,71 @@ health check reports it as a warning rather than a failure.
   scs.com.ua) — all re-host EarthCam or Windy, or were offline. None is an
   origin source.
 - **IPTV playlists** — carry Georgian TV channels, not city cameras.
+
+## Paris — 2 playable, 1 link-out
+
+Paris is thin on YouTube for a city its size. Every live-filtered search for
+`paris live cam`, `paris webcam`, `tour eiffel live`, `montmartre live`,
+`notre dame paris live`, `la défense webcam`, `seine paris live cam`,
+`champs elysées live`, `arc de triomphe live cam`, `trocadero live`,
+`tour montparnasse live`, `gare du nord live cam`, `paris rooftop live`,
+`paris webcam en direct` (and a few more) surfaces the same three real
+cameras; everything else is a music stream with a Paris thumbnail, a
+"virtual" Disneyland ambience loop, a scraped-cam compilation, or a Lyon
+ring-road camera that happens to match "Périphérique".
+
+Each candidate's watch page was fetched and checked for `"isLiveNow":true`
+and `"playableInEmbed":true`, then the live thumbnail was eyeballed to make
+sure it is a camera and not a graphic:
+
+| Camera | Source | Operator | Result |
+| --- | --- | --- | --- |
+| Eiffel Tower from the Palais d’Iéna | video `OzYp4NRZlwQ` | Vision-Environnement (for the CESE) | live + embeddable; one stream running since 2025-04, so a video id is safe |
+| Sacré-Cœur — Montmartre | channel `UCjgiKi29C--6aW3pgn0l5JA` | PARIS TV | live + embeddable — but the channel's `/streams` tab shows ~30 past broadcasts in one month, i.e. it restarts about daily and mints a new video id each time. Modelled as a **channel-follow** source, like the Heathrow entries |
+| Paris skyline from Boulogne | channel `UC5VvzLNELVAwuPiMWsr2cvQ` | Paris75Webcam | live, but **embedding disabled** (oEmbed answers `401`, watch page has `playableInEmbed:false`). Kept as `kind: 'link'` to the channel's `/live` URL, and flagged `nearby` — Boulogne-Billancourt is outside the city proper |
+
+Vision-Environnement runs dozens of French webcams on one channel (Brest,
+Saint-Malo, Le Havre, Bastia airport, …), so a `channelId` source would *not*
+work for them — it must stay a `videoId`. Palais d'Iéna is their only Paris
+camera at the time of writing.
+
+### Ruled out
+
+- **EarthCam** — `earthcam.com/world/france/paris/` now redirects to the
+  EarthCam home page; no Paris camera is listed.
+- **Viewsurf / meteo-paris.com, PanoraMagique, earthTV** — these are the
+  Paris cameras that weather aggregators (Windfinder, webcamgalore) re-host as
+  stills. Each runs its own player and publishes no embeddable stream;
+  meteo-paris' `/webcam` page is a 404.
+- **Aggregators** (webcamtaxi, onlinewebcameras, airport-webcam.com,
+  liveairportcams, city-webcams) — bot-blocked or re-hosting the above; none
+  is an origin source.
+- **"Carte de Surveillance EN DIRECT · Paris" (SurveillanceMap Foundation)**
+  — a compilation stream, not an operator-published camera.
+
+## Paris airports — none, and why
+
+Checked CDG (Roissy), Orly and Le Bourget on 2026-08-18. **No operator
+publishes a permanent public camera at any of them.**
+
+- **YouTube** — live-filtered searches for `CDG live`, `Charles de Gaulle
+  airport live`, `Roissy live spotting`, `LFPG live`, `Orly airport live`,
+  `Le Bourget live`, `aéroport paris en direct`, `paris planespotting live`
+  return exactly one Paris hit: the *Live Airways France* channel, whose
+  "CDG 20", "ORY 19" and "BVA 11" streams are **departure boards** rendered
+  as video, not cameras (verified from the live thumbnail). The one genuine
+  spotting stream (`CAvTSeNRB6k`, "From Brussels to the Sky") was a one-off
+  broadcast in July 2022 and is not live.
+- **Windfinder / webcamgalore** "webcams near this airport" — the nearest
+  cameras to CDG are 22–24 km away and the nearest to Orly are 14 km away, all
+  of them the Paris city cameras above. Nothing at Le Bourget either.
+- **Paris Air Show cams** (`cam.airlive.net/pas/`) — event-only, live for
+  one week in odd-numbered Junes.
+- **Groupe ADP** publishes no webcam.
+
+So the airports collection has no Paris entry. If a real one appears, the
+usual test applies: permanent 24/7 stream, live, embeddable, verified with
+`npm run check:cams`.
 
 ## Re-checking
 

@@ -38,6 +38,17 @@ export const cities: City[] = [
     blurb:
       'Dutch capital built on concentric canals, with Dam Square and Centraal Station at its centre.',
   },
+  {
+    id: 'paris',
+    name: 'Paris',
+    localName: 'Paris',
+    country: 'France',
+    countryCode: 'FR',
+    timeZone: 'Europe/Paris',
+    coords: [48.8566, 2.3522],
+    blurb:
+      'French capital on the Seine, from the Eiffel Tower and the Trocadéro up to the Sacré-Cœur on the Montmartre hill.',
+  },
 ]
 
 export const cityById = new Map(cities.map((c) => [c.id, c]))

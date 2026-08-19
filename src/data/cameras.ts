@@ -121,6 +121,58 @@ export const cameras: Camera[] = [
   },
 
   // ---------------------------------------------------------------------------
+  // Paris, France
+  //
+  // Thin on YouTube for a city its size: the best-known views (EarthCam,
+  // Viewsurf / meteo-paris, SkylineWebcams) run their own players and publish
+  // no embeddable stream. What *is* embeddable is below; the Boulogne panorama
+  // is public but has embedding switched off, so it links out. See
+  // `docs/sources.md`.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'par-eiffel-palais-iena',
+    cityId: 'paris',
+    name: 'Eiffel Tower — from the Palais d’Iéna',
+    description:
+      'Rooftop camera on the Palais d’Iéna (seat of the CESE) looking south-west over the Trocadéro to the Eiffel Tower, with the Palais de Chaillot on the right.',
+    operator: 'Vision-Environnement (for the CESE)',
+    pageUrl: 'https://www.youtube.com/watch?v=OzYp4NRZlwQ',
+    coords: [48.8635, 2.2914],
+    tags: ['landmark', 'panorama'],
+    source: { kind: 'youtube', videoId: 'OzYp4NRZlwQ' },
+    verifiedAt: '2026-08-18',
+  },
+  {
+    id: 'par-sacre-coeur',
+    cityId: 'paris',
+    // PARIS TV restarts this broadcast roughly daily, which mints a new video
+    // id each time — so follow the channel's current live stream instead.
+    name: 'Sacré-Cœur — Montmartre',
+    description:
+      'Rooftop camera looking up at the Sacré-Cœur basilica over the roofs of Montmartre — follows the channel’s current live stream.',
+    operator: 'PARIS TV',
+    pageUrl: 'https://www.youtube.com/channel/UCjgiKi29C--6aW3pgn0l5JA/live',
+    coords: [48.8859, 2.3446],
+    tags: ['landmark', 'heritage'],
+    source: { kind: 'youtube', channelId: 'UCjgiKi29C--6aW3pgn0l5JA' },
+    verifiedAt: '2026-08-18',
+  },
+  {
+    id: 'par-boulogne-skyline',
+    cityId: 'paris',
+    name: 'Paris skyline — from Boulogne',
+    description:
+      'Rooftop panorama from Boulogne-Billancourt looking east over the city to the Eiffel Tower and Tour Montparnasse. Live on YouTube, but the operator has embedding switched off, so it opens at the source.',
+    operator: 'Paris75Webcam',
+    pageUrl: 'https://www.youtube.com/channel/UC5VvzLNELVAwuPiMWsr2cvQ/live',
+    coords: [48.8397, 2.2399],
+    tags: ['panorama', 'skyline'],
+    nearby: true,
+    source: { kind: 'link', url: 'https://www.youtube.com/channel/UC5VvzLNELVAwuPiMWsr2cvQ/live' },
+    verifiedAt: '2026-08-18',
+  },
+
+  // ---------------------------------------------------------------------------
   // Tbilisi, Georgia
   //
   // No Tbilisi camera currently publishes a stream that a third-party page is

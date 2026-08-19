@@ -2,8 +2,8 @@
 
 Browse public live camera feeds from around the world — city centres, plus
 curated **collections** of interesting cams (zoos & aquariums, wildlife & safari,
-landmarks, beaches). Ships with **Tbilisi** and **Amsterdam** as geographic
-cities and **55+ verified live feeds** in total.
+landmarks, beaches). Ships with **Tbilisi**, **Amsterdam** and **Paris** as
+geographic cities and **55+ verified live feeds** in total.
 
 - A wall of live feeds per place, with a configurable number auto-playing
 - **Collections** of published public cams grouped by subject — otters, pandas,
@@ -166,6 +166,7 @@ in the category it did.
 | City | Playable in-app | Link-out only |
 | --- | --- | --- |
 | Amsterdam | 8 YouTube live streams (Dam Square, Damrak, Centraal, Oosterdok, Sixhaven, Zaanse Schans) | — |
+| Paris | 2 YouTube live streams (Eiffel Tower from the Palais d’Iéna, Sacré-Cœur) | 1 (Paris75Webcam’s Boulogne panorama) |
 | Tbilisi | 3 Windy webcams (needs a free key, see below) | 3 (EarthCam ×2, Kamerebi.live) |
 
 Tbilisi is thinner than Amsterdam for a structural reason, not an oversight: at
