@@ -280,11 +280,48 @@ a:hover {
 }
 
 .sidebar__footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
   font-size: 11px;
   line-height: 1.45;
   color: var(--text-faint);
   border-top: 1px solid var(--line);
   padding-top: 12px;
+}
+
+/* Matches the same control on the platform's other apps, in CityWatch's palette. */
+.back-to-projects {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.back-to-projects:hover {
+  background: var(--bg);
+  border-color: var(--text-faint);
+  text-decoration: none;
+}
+
+.back-to-projects:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.back-to-projects span {
+  font-size: 16px;
+  line-height: 1;
 }
 
 /* ----------------------------------------------------------- city header -- */

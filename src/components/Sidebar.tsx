@@ -4,6 +4,7 @@ import { flagEmoji } from '../data/cities'
 import { formatLocalTime } from '../lib/time'
 import { daylightPhase, phaseIcon, phaseLabel } from '../lib/sun'
 import { isEmbeddable } from '../data/cameras'
+import { projectsUrl } from '../lib/projectsUrl'
 
 interface Props {
   cities: City[]
@@ -138,6 +139,10 @@ export function Sidebar({ cities, cameras, selectedCityId, now, onSelectCity }: 
       </nav>
 
       <footer className="sidebar__footer">
+        {/* Back to the platform homepage, which lives on the apex domain. */}
+        <a className="back-to-projects" href={projectsUrl()} aria-label="Back to my projects">
+          <span aria-hidden>‹</span> Back to My Projects
+        </a>
         <p>
           Feeds are published by their operators, who are credited on every tile. Cameras that
           cannot be embedded link out to the source instead.
