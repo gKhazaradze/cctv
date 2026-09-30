@@ -22,7 +22,7 @@ EXPOSE 5173
 CMD ["npm", "run", "dev"]
 
 # --------------------------------------------------------------- runtime ----
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 
 # Writes /config.js from the environment before nginx starts, so an API key can
 # be added by restarting the container rather than rebuilding the image.
