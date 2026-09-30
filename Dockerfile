@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------- base ------
 # Dependencies + source. Shared by the build, dev and tooling stages so npm ci
 # runs once and stays cached until the lockfile actually changes.
-FROM node:18-alpine AS base
+FROM node:26-alpine AS base
 WORKDIR /app
 
 COPY package.json package-lock.json ./
