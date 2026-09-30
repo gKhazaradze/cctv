@@ -1,6 +1,6 @@
 # Production: citywatch runs as a NETWORK-ONLY container behind the platform's
-# Caddy edge. It publishes NO host ports and joins the shared external `web`
-# network, where Caddy reaches it as `citywatch:80` and serves it at
+# Caddy edge. It publishes NO host ports and joins its own external
+# `edge-citywatch` network (shared only with Caddy), where Caddy reaches it as `citywatch:80` and serves it at
 # citywatch.<domain>. (See the platform repo's CONTRACT.md.)
 #
 #   docker compose up -d --build      # build + start (no host port published)
@@ -9,7 +9,7 @@
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 # Stop with: docker compose down
 #
-# The shared network must exist:  docker network create web
+# Its edge network must exist:  docker network create edge-citywatch
 #
 # ON THE SERVER the image is never built — it is pulled. That box has 909 MB of
 # RAM and no swap, and a Rollup build there once exhausted memory and took every
@@ -32,11 +32,11 @@ services:
       # Read at container start-up, so adding it needs a restart, not a rebuild.
       WINDY_API_KEY: "${WINDY_API_KEY:-}"
     restart: unless-stopped
-    networks: [web]
+    networks: [edge]
 
   # Hot-reloading dev server against your working tree.
   #   docker compose --profile dev up dev
-  # Local-only: keeps its host port and stays off the `web` network.
+  # Local-only: keeps its host port and stays off the edge network.
   dev:
     profiles: ["dev"]
     build:
@@ -84,8 +84,10 @@ services:
     command: ["npm", "run", "check:cams"]
 
 networks:
-  # Shared edge network, created out-of-band and owned by the platform repo.
-  # citywatch just attaches; Caddy routes citywatch.<domain> -> citywatch:80.
-  web:
+  # This app's own edge network, shared with the platform's Caddy and
+  # nothing else, so no other container on the box can reach it (security
+  # fix plan 5.2). Created out-of-band — CI does it if missing — and Caddy
+  # routes citywatch.<domain> to this container over it.
+  edge:
     external: true
-    name: web
+    name: edge-citywatch

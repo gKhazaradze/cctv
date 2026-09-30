@@ -107,10 +107,12 @@ jobs:
             git -C /srv/citywatch fetch --prune origin main
             git -C /srv/citywatch reset --hard origin/main
 
-            echo "--- Ensuring shared edge network exists ---"
-            # our compose joins the external `web` network owned by the platform
-            # repo; create-if-missing so a missing network can't fail us.
-            sudo docker network inspect web >/dev/null 2>&1 || sudo docker network create web
+            echo "--- Ensuring this app's edge network exists ---"
+            # Our compose joins `edge-citywatch`, shared only with the platform's Caddy
+            # (security fix plan 5.2). Create it if missing and make sure Caddy is
+            # on it, so a first deploy never depends on the platform's own order.
+            sudo docker network inspect edge-citywatch >/dev/null 2>&1 || sudo docker network create edge-citywatch
+            sudo docker network connect edge-citywatch caddy 2>/dev/null || true
 
             echo "--- Pulling the prebuilt image ---"
             # GHCR packages default to private even for a public repo, so

@@ -25,7 +25,7 @@ not cameras found by scanning for weak security.
 The shared edge network exists once per machine:
 
 ```bash
-docker network create web        # once, if you've never run a platform project
+docker network create edge-citywatch   # once
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 # → http://localhost:8080
 ```
@@ -70,7 +70,7 @@ not after every reboot.
 CityWatch is a project on the [platform](https://github.com/gKhazaradze/my_home_page)
 — one box where a single Caddy container owns `:80`/`:443`, terminates TLS, and
 reverse-proxies each project subdomain to a project container by name over the
-shared `web` Docker network. This repo holds up its end of that contract:
+own `edge-citywatch` Docker network, shared only with Caddy. This repo holds up its end of that contract:
 
 - `container_name: citywatch` — the stable name Caddy targets
 - `networks: [web]`, declared `external` — the platform owns that network
