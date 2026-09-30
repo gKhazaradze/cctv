@@ -31,7 +31,26 @@ services:
       # Optional. Free key from https://api.windy.com/keys ("Webcams" product).
       # Read at container start-up, so adding it needs a restart, not a rebuild.
       WINDY_API_KEY: "${WINDY_API_KEY:-}"
+      # The start-up script writes config.js here (/run is a tmpfs: /var/run
+      # below, the same directory), not into the read-only web root;
+      # docker/nginx.conf serves /config.js from it.
+      CITYWATCH_CONFIG_PATH: /run/citywatch-config.js
     restart: unless-stopped
+    # Hardening (security fix plan 5.5): a read-only root (nginx's temp dirs,
+    # its pid and the runtime config.js live in memory), only the capabilities
+    # nginx's root master needs to bind :80 and drop to the `nginx` user, and a
+    # memory / process cap.
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID, NET_BIND_SERVICE]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 32m
+    pids_limit: 64
     networks: [edge]
 
   # Hot-reloading dev server against your working tree.
