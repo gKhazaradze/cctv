@@ -33,7 +33,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Validate compose files
         run: |
@@ -44,10 +44,10 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.dev.yml config -q
 
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -57,7 +57,7 @@ jobs:
         # The runtime stage runs `tsc --noEmit && vite build` in its build stage,
         # so a type error fails here and nothing gets pushed — this step is the
         # typecheck gate as well as the build.
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           target: runtime
@@ -69,84 +69,24 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Deploy over SSH (the box runs deploy/on-box.sh at this commit)
         env:
-          # GITHUB_TOKEN is scoped to this run and expires with it, so the box
-          # never stores a long-lived registry credential.
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GHCR_USER: ${{ github.actor }}
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          script_stop: true
-          envs: GHCR_TOKEN,GHCR_USER
-          script: |
-            set -euo pipefail
-
-            # First deploy on a fresh box: clone ourselves rather than making
-            # someone SSH in to do it by hand. The repo is public, so this needs
-            # no credentials on the server. /srv is root-owned, hence sudo for
-            # the clone; ownership then moves to the login user so every later
-            # fetch/reset runs unprivileged, like the other projects.
-            echo "--- Ensuring the checkout exists ---"
-            if [ ! -d /srv/citywatch/.git ]; then
-              echo "no checkout at /srv/citywatch — cloning"
-              sudo git clone https://github.com/gKhazaradze/cctv.git /srv/citywatch
-              sudo chown -R "$(id -un)":"$(id -gn)" /srv/citywatch
-            fi
-
-            # git runs as the LOGIN USER, not root: /srv/citywatch is owned by
-            # that user. Only docker needs sudo (the same NOPASSWD sudoers rule
-            # the other projects rely on). The checkout is still needed even
-            # though the image is prebuilt — it carries the compose file.
-            echo "--- Syncing latest code ---"
-            git config --global --add safe.directory /srv/citywatch || true
-            git -C /srv/citywatch fetch --prune origin main
-            git -C /srv/citywatch reset --hard origin/main
-
-            echo "--- Ensuring this app's edge network exists ---"
-            # Our compose joins `edge-citywatch`, shared only with the platform's Caddy
-            # (security fix plan 5.2). Create it if missing and make sure Caddy is
-            # on it, so a first deploy never depends on the platform's own order.
-            sudo docker network inspect edge-citywatch >/dev/null 2>&1 || sudo docker network create edge-citywatch
-            sudo docker network connect edge-citywatch caddy 2>/dev/null || true
-
-            echo "--- Pulling the prebuilt image ---"
-            # GHCR packages default to private even for a public repo, so
-            # authenticate with this run's token, then drop it again.
-            echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u "$GHCR_USER" --password-stdin
-
-            cd /srv/citywatch
-            sudo docker compose pull app
-
-            echo "--- Starting the container ---"
-            # --no-build is load-bearing: it makes it structurally impossible
-            # for this box to attempt a Rollup build, whatever the compose file
-            # says. See the note at the top of this workflow.
-            sudo docker compose up -d --no-build app
-
-            sudo docker logout ghcr.io >/dev/null 2>&1 || true
-
-            echo "--- Pruning dangling images (keep disk in check) ---"
-            # Each deploy leaves the previous image untagged; unpruned they fill
-            # the small root volume.
-            sudo docker image prune -f >/dev/null 2>&1 || true
-
-            echo "--- Waiting for nginx to answer (inside the container) ---"
-            # citywatch publishes no host port (Caddy owns the edge), so probe
-            # the app directly inside the container instead of host :80.
-            for i in $(seq 1 15); do
-              if sudo docker exec citywatch wget -q --spider http://127.0.0.1/ 2>/dev/null; then
-                echo "App is healthy"; exit 0
-              fi
-              sleep 2
-            done
-            echo "App failed to come up in time"
-            sudo docker compose logs --tail=40
-            exit 1
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # this job's own, gone when it ends
+        run: |
+          # This repo's own key signs in as the box's unprivileged `deploy` user,
+          # which pins it to one command: deploy this app at the commit sent
+          # (my_home_page/deploy/box). No script travels from here — the box
+          # runs deploy/on-box.sh as committed on the branch — and the host key
+          # is pinned, so a stolen key or a man in the middle gets at most a
+          # redeploy of what is already on main (security fix plan 5.4).
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s %s\n' "$EC2_HOST" 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFe7pJ2Ic/SxJmjzozAvmblXVkDJGrokHVRc0yLcMGTD' > ~/.ssh/known_hosts
+          printf '%s %s\n' "$GITHUB_ACTOR" "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes "deploy@$EC2_HOST" "$GITHUB_SHA"
 
       - name: Post-deploy public health check
         run: |
