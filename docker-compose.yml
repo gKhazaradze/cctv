@@ -76,19 +76,9 @@ services:
     # ask for it, not silently after every reboot.
     restart: "no"
 
-  # Optional RTSP/RTMP -> browser bridge for cameras that only speak RTSP (most
-  # security-style IP cameras). Browsers can't play RTSP; go2rtc converts it to
-  # HLS/WebRTC/MSE. Bring your own camera URLs in docker/go2rtc.yaml, then add
-  # the resulting HLS URL in the app. See docs/ip-cameras.md.
-  #   docker compose --profile rtsp up -d go2rtc
-  go2rtc:
-    profiles: ["rtsp"]
-    image: alexxit/go2rtc:latest
-    container_name: citywatch-go2rtc
-    network_mode: host          # simplest path for LAN cameras + WebRTC
-    volumes:
-      - ./docker/go2rtc.yaml:/config/go2rtc.yaml:ro
-    restart: unless-stopped
+  # The optional RTSP bridge (go2rtc) is NOT here: it lives in
+  # docker-compose.rtsp.yml and runs only on your own machine, because its API
+  # can run commands and this file is what the internet-facing server uses.
 
   # One-shot camera health check.
   #   docker compose --profile tools run --rm check

@@ -139,7 +139,8 @@ under a **My cameras** group and are stored only in your browser.
 
 Snapshot and MJPEG cameras play directly, even across origins. RTSP cameras (most
 security cams) need the optional [go2rtc](https://github.com/AlexxIT/go2rtc)
-bridge — `docker compose --profile rtsp up -d go2rtc`. Full details, including the
+bridge — `docker compose -f docker-compose.rtsp.yml up -d`, on your own machine only
+(its API can run commands, so it never goes on the server). Full details, including the
 HTTP-vs-HTTPS mixed-content gotcha, are in [`docs/ip-cameras.md`](docs/ip-cameras.md).
 
 This adds cameras an operator has **published** — it is not a scanner and won't

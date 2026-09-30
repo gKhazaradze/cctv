@@ -1,0 +1,23 @@
+# The optional RTSP -> browser bridge (go2rtc) for cameras on YOUR network.
+# LOCAL ONLY, never on the server (security fix plan 5.10): go2rtc's API has no
+# login and can add `exec:` sources, which run commands, so whoever reaches it
+# can run code on the host. It used to sit in the production compose on the
+# host network, one `--profile rtsp up` away from being open to the internet;
+# it has no job there anyway (the HTTPS site can't load plain-HTTP streams).
+#
+#   docker compose -f docker-compose.rtsp.yml up -d      # stop: ... down
+#
+# The API/dashboard is published on 127.0.0.1:1984 only (this machine). Read
+# docs/ip-cameras.md before opening it to your LAN. Its own project name keeps
+# the main compose's `up --remove-orphans` from treating it as an orphan.
+name: citywatch-rtsp
+
+services:
+  go2rtc:
+    image: alexxit/go2rtc:1.9.14
+    container_name: citywatch-go2rtc
+    ports:
+      - "127.0.0.1:1984:1984"
+    volumes:
+      - ./docker/go2rtc.yaml:/config/go2rtc.yaml:ro
+    restart: unless-stopped

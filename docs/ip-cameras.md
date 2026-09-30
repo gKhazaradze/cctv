@@ -70,19 +70,27 @@ that converts RTSP (and RTMP, and more) into browser-friendly HLS/WebRTC.
      backyard: rtsp://user:pass@192.168.1.50:554/Streaming/Channels/101
    ```
 
-2. Start the bridge:
+2. Start the bridge, on your own machine:
 
    ```bash
-   docker compose --profile rtsp up -d go2rtc
+   docker compose -f docker-compose.rtsp.yml up -d
    ```
 
-3. Confirm it connects at `http://<host>:1984` (go2rtc's dashboard).
+3. Confirm it connects at `http://localhost:1984` (go2rtc's dashboard).
 
 4. In **+ Add camera**, choose type **HLS** and use:
 
    ```
-   http://<host>:1984/api/stream.m3u8?src=backyard
+   http://localhost:1984/api/stream.m3u8?src=backyard
    ```
+
+**It stays on your machine, on purpose.** go2rtc's API has no login and can add
+`exec:` sources, which run commands, so anyone who can reach port 1984 can run
+code on that computer. The compose file therefore publishes it on `127.0.0.1`
+only, and it is not part of the production compose at all: the public site is
+HTTPS, which can't load these plain-HTTP streams anyway. To watch from another
+device, change the port line to `"1984:1984"`, and only on a network where you
+trust every device.
 
 Because go2rtc runs on the same host and adds permissive CORS, the HLS stream it
 produces plays where a raw camera HLS URL often wouldn't.

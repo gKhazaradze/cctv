@@ -1,16 +1,18 @@
 # go2rtc configuration for the optional RTSP -> browser bridge.
 #
-# Only used by the "rtsp" compose profile:
-#   docker compose --profile rtsp up -d go2rtc
+# Only used by docker-compose.rtsp.yml, on your own machine (never the server:
+# this API has no login and can add `exec:` sources, which run commands):
+#   docker compose -f docker-compose.rtsp.yml up -d
 #
 # Add one entry per camera under `streams`. The key becomes the stream name; the
 # value is the camera's real source URL. Then in the CityWatch "Add camera"
 # dialog choose type HLS and use:
 #
-#   http://<this-host>:1984/api/stream.m3u8?src=<name>
+#   http://localhost:1984/api/stream.m3u8?src=<name>
 #
-# go2rtc's own dashboard (http://<host>:1984) is handy for confirming a camera
-# connects before you wire it into the app.
+# go2rtc's own dashboard (http://localhost:1984) is handy for confirming a
+# camera connects before you wire it into the app. `listen` stays ":1984"
+# inside the container; the compose file publishes it on 127.0.0.1 only.
 
 api:
   listen: ":1984"
