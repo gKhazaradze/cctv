@@ -14,7 +14,7 @@ name: citywatch-rtsp
 
 services:
   go2rtc:
-    image: alexxit/go2rtc:1.9.14
+    image: alexxit/go2rtc:1.9.15
     container_name: citywatch-go2rtc
     ports:
       - "127.0.0.1:1984:1984"
